@@ -9,17 +9,22 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "modbus.h"
+#include "public.h"
 char dest[256];
 void threadcreate(void);
-void * func(void *arg);
-
+void * mbPollThread(void *arg);
+void * nonStdMbThread(void *arg);
+static char judgeMbPollIsStd(const char * name);
+static void pollThreadcreate(void);
 const int idx[6]={0,1,2,3,4,5};
-const char serialPath[6][15]={"/dev/ttymxc1","/dev/ttymxc2","/dev/ttymxc3","/dev/ttymxc4","/dev/ttymxc5","/dev/ttymxc7"};
+//const char serialPath[6][15]={"/dev/ttymxc1","/dev/ttymxc2","/dev/ttymxc3","/dev/ttymxc4","/dev/ttymxc5","/dev/ttymxc7"};
+const  char *serialPath[]={"/dev/ttymxc1","/dev/ttymxc2","/dev/ttymxc3","/dev/ttymxc4","/dev/ttymxc5","/dev/ttymxc7"};
+const  char  *rs485[]={"RS485-0","RS485-1","RS485-2","RS485-3","RS485-4","RS485-5"};
 
 void *slavePollThread(void)
 {
 //
-	threadcreate();
+	pollThreadcreate();
     sleep(2);
     return 0;
 	while(1)
@@ -90,8 +95,7 @@ void *slavePollThread(void)
 		//return 0;
 	}
 }
-
-void * func(void *arg)
+void * mbPollThread(void *arg)
 {
     int num=*(int *)arg;
     /*
@@ -104,45 +108,79 @@ void * func(void *arg)
     while(1)
     {
     	printf("num is %d\n",num);
-    	printf("serialPath is %s\n",&serialPath[num][0]);
+    	printf("serialPath is %s\n",serialPath[num]);
 
        sleep(2);
     }
     //return NULL;
 }
-void threadcreate(void)
+void * nonStdMbThread(void *arg)
 {
-    pthread_t thr1,thr2,thr3,thr4,thr5,thr6;
+    int num=*(int *)arg;
 
-    if(pthread_create(&thr1,NULL,func,&idx[0])!=0)
+    while(1)
     {
-        printf("create thread 0 failed!\n");
-        return;
+    	printf("num is %d\n",num);
+    	printf("no standard modubs thread serialPath is %s\n",serialPath[num]);
+
+       sleep(2);
     }
-    if(pthread_create(&thr2,NULL,func,&idx[1])!=0)
-    {
-        printf("create thread 1 failed!\n");
-        return;
-    }
-    if(pthread_create(&thr3,NULL,func,&idx[2])!=0)
-    {
-        printf("create thread 2 failed!\n");
-        return;
-    }
-    if(pthread_create(&thr4,NULL,func,&idx[3])!=0)
-    {
-        printf("create thread 3 failed!\n");
-        return;
-    }
-    if(pthread_create(&thr5,NULL,func,&idx[4])!=0)
-    {
-        printf("create thread 4 failed!\n");
-        return;
-    }
-    if(pthread_create(&thr6,NULL,func,&idx[5])!=0)
-    {
-        printf("create thread 5 failed!\n");
-        return;
-    }
+    //return NULL;
+}
+
+static void pollThreadcreate(void)
+{
+	int i;
+	char rc;
+    pthread_t thr[6];
+
+  // if(pthread_create(&thr[0],NULL,mbPollThread,&idx[0])!=0);
+
+     for(i=0;i<6;i++)
+     {
+    	 rc=judgeMbPollIsStd(rs485[i]);
+    	 //rc=1;
+    	 if(rc==1)
+    	 {
+    		 if(pthread_create(&thr[i],NULL,mbPollThread,&idx[i])!=0)
+			{
+				printf("create thread 0 failed!\n");
+				return;
+			}
+    	 }
+    	 else  if(rc==0)
+    	 {
+			if(pthread_create(&thr[i],NULL,nonStdMbThread,&idx[i])!=0)
+			{
+				printf("create thread 0 failed!\n");
+				return;
+			}
+    	 }
+
+     }
+  //  if(pthread_create(&thr1,NULL,func,&idx[0])!=0)
+//    {
+//        printf("create thread 0 failed!\n");
+//        return;
+//    }
+//    if(pthread_create(&thr2,NULL,func,&idx[1])!=0)
+//    {
+//        printf("create thread 1 failed!\n");
+//        return;
+//    }
+
+}
+static char judgeMbPollIsStd(const char * name)
+{
+	int i;
+	for(i=0;i<g_devHardCfgLen;i++)
+	{
+		if(!strcmp(name,g_devHardCfg[i].name))
+		{
+			if(!strcmp("Y",g_devHardCfg[i].option5))return 1;
+			else return 0;
+		}
+	}
+	return -1;
 }
 

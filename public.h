@@ -98,20 +98,35 @@ typedef struct{
 	int radio;
 	int upSentPeriod;
 	int belongToOid;
-	int mbAddr;
 	int dataOption;
 	int belongOidIdx;
-	int mbDataLen;
-	int mbDataType;
 	char ssDevId[5];
 	char valueString[10];
 	char ssType[30];
 	char ssDataType[30];
-	char resouceMap[30];
 	char ssTypeCnName[50];
 	char oidName[50];
 
 }devDataTable;
+typedef struct{
+	char name[10];
+	char option1[10];
+	char option2[10];
+	char option3[10];
+	char option4[10];
+	char option5[10];
+
+}devHardCfg;
+
+typedef struct{
+	int  oid;
+	int  len;
+	int  mbDevAddr;
+	int  stdMbCmd;
+	int  mbStartAddr;
+	char pollPortName[10];
+	char nonStdCmdId[10];
+}MBPOLLCFG;
 
 typedef struct
 {
@@ -138,7 +153,11 @@ extern void DebugPrint(char *fmt, ...);
 //extern void calc_img_crc(void);
 
 extern devDataTable *g_devDataTab;
+extern devHardCfg *g_devHardCfg;
+extern MBPOLLCFG *g_mbPollTab;
 extern int  g_tabLen;
+extern int  g_devHardCfgLen;
+extern int  g_mbPollTabLen;
 extern char *g_mqComVer;
 extern char g_mqComId[];
 
