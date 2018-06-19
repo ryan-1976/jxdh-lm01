@@ -119,14 +119,18 @@ typedef struct{
 }devHardCfg;
 
 typedef struct{
-	int  oid;
-	int  len;
-	int  mbDevAddr;
-	int  stdMbReadCmd;
-	int  stdMbSetCmd;
-	int  mbStartAddr;
-	char pollPortNameIdx;
-	char nonStdCmdId[10];
+	INT16U  oid;
+	INT16U  len;
+	INT16U  mbDevAddr;
+	INT8U   stdMbReadCmd;
+	INT8U   stdMbSetCmd;
+	INT16U  mbStartAddr;
+	INT8U   pollPortNameIdx;
+	INT16U  comPacketIndex;
+	INT16U  byteIndex;
+	INT16U  bitIndex;
+	INT8U   nonStdCmdId[10];
+
 }MBPOLLCFG;
 
 typedef struct
@@ -142,9 +146,31 @@ typedef struct
 
 typedef struct{
 
-	char name[30];
-	char content[50];
+	INT8U name[30];
+	INT8U content[50];
 }DevCfgTable;
+
+typedef union{
+	INT8U byte[4];
+	INT32U  lword;
+}lWord4Byte;
+
+typedef struct{
+	INT8U   devAddr;
+	INT8U   cmd;
+	INT16U  starMbAddr;
+	INT16U  byteSum;
+}CONTENT_RECORD;
+
+typedef struct{
+	INT16U          packetInex;
+	INT16U          starAddrIndex;//在总表中的开始位置。方便寻址
+	INT8U           portIdx;
+	CONTENT_RECORD  content;
+}PACKET_record;
+
+
+
 extern int  get_oidIdx(int oid);
 extern int  get_typeValue(char *ssType);
 extern void testCrc32(void);
