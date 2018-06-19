@@ -206,6 +206,7 @@ static void getHardCfg(void)
 	  sqlite3_free(errmsg);
 
 }
+
 static void getMbPollCfg(void)
 {
 	char** pResult;
@@ -240,28 +241,123 @@ static void getMbPollCfg(void)
 	{
 		g_mbPollTab[i].oid =atoi(pResult[nIndex]);
 		g_mbPollTab[i].len =atoi(pResult[nIndex+2]);
-		strcpy(g_mbPollTab[i].pollPortName,pResult[nIndex+3]);
+		g_mbPollTab[i].pollPortNameIdx=changRs485Idx(pResult[nIndex+3]);
+		//strcpy(g_mbPollTab[i].pollPortNameIdx,pResult[nIndex+3]);
 		g_mbPollTab[i].mbDevAddr =atoi(pResult[nIndex+4]);
-		g_mbPollTab[i].stdMbCmd =atoi(pResult[nIndex+5]);
-		g_mbPollTab[i].mbStartAddr =atoi(pResult[nIndex+6]);
-		strcpy(g_mbPollTab[i].nonStdCmdId,pResult[nIndex+7]);
+		g_mbPollTab[i].stdMbReadCmd =atoi(pResult[nIndex+5]);
+		g_mbPollTab[i].stdMbSetCmd =atoi(pResult[nIndex+6]);
+		g_mbPollTab[i].mbStartAddr =atoi(pResult[nIndex+7]);
+		strcpy(g_mbPollTab[i].nonStdCmdId,pResult[nIndex+8]);
 
 		nIndex=nIndex+nCol;
 	}
-//	for(i=0;i<g_mbPollTabLen;i++)
-//	{
-//		printf("g_mbPoll.oid=%d ",g_mbPollTab[i].oid);
-//		printf("g_mbPoll.len=%d ",g_mbPollTab[i].len);
-//		printf("g_mbPoll.mbDevAddr=%d ",g_mbPollTab[i].mbDevAddr);
-//		printf("g_mbPoll.stdMbCmd=%d ",g_mbPollTab[i].stdMbCmd);
-//		printf("g_mbPoll.mbStartAddr=%d ",g_mbPollTab[i].mbStartAddr);
-//		printf("g_mbPoll.nonStdCmdId=%s ",g_mbPollTab[i].nonStdCmdId);
-//		printf("g_mbPoll.pollPortName=%s ",g_mbPollTab[i].pollPortName);
-//		printf("\n ");
-//	}
+	SortByRs485();
+	SortByMbDevAddr();
+	for(i=0;i<g_mbPollTabLen;i++)
+	{
+		printf("oid=%d ",g_mbPollTab[i].oid);
+		printf("len=%d ",g_mbPollTab[i].len);
+		printf("mbDevAddr=%d ",g_mbPollTab[i].mbDevAddr);
+		printf("stdMbReadCmd=%d ",g_mbPollTab[i].stdMbReadCmd);
+		printf("stdMbSetCmd=%d ",g_mbPollTab[i].stdMbSetCmd);
+		printf("mbStartAddr=%d ",g_mbPollTab[i].mbStartAddr);
+		printf("nonStdCmdId=%s ",g_mbPollTab[i].nonStdCmdId);
+		printf("pollPortNameIdx=%d ",g_mbPollTab[i].pollPortNameIdx);
+		printf("\n ");
+	}
 	  //---------------------------------------------------
 
 	  sqlite3_close(pdb);
 	  sqlite3_free(errmsg);
 
+}
+int changRs485Idx(char *p)
+{
+	int i;
+	char  *rs485Name[]={"RS485-0","RS485-1","RS485-2","RS485-3","RS485-4","RS485-5"};
+
+	for(i=0;i<6;i++)
+	{
+		if(!strcmp(p,rs485Name[i]))
+				return i;
+	}
+	return 0;
+}
+
+void SortByRs485(void)
+{
+	int i,j;
+	MBPOLLCFG temp;
+
+
+	for(i=0; i<g_mbPollTabLen; i++){
+		for(j=0; j<g_mbPollTabLen-i; j++){
+			if(g_mbPollTab[j].pollPortNameIdx>g_mbPollTab[j+1].pollPortNameIdx){
+				temp=g_mbPollTab[j];
+				g_mbPollTab[j]=g_mbPollTab[j+1];
+				g_mbPollTab[j+1]=temp;
+			}
+		}
+	}
+}
+void SortByMbDevAddr(void)
+{
+	int m,n,i,j;
+	MBPOLLCFG temp;
+	int startAddr=0;
+
+	for(m=0;m<6;m++)
+	{
+		for(i=0; i<g_mbPollTabLen; i++)
+		{
+			if(g_mbPollTab[i].pollPortNameIdx ==m)
+			{
+				startAddr=i;
+				break;
+			}
+		}
+		n=0;
+		if(i>=g_mbPollTabLen)continue;
+
+		for(i=startAddr;i<g_mbPollTabLen; i++)
+		{
+			if(g_mbPollTab[i].pollPortNameIdx !=m)
+			{
+				break;
+			}
+			n++;
+		}
+//		for(i=startAddr; i<endAddr; i++)
+//		{
+//			for(j=startAddr; j<endAddr-1; j++)
+//			{
+//				if(g_mbPollTab[j].mbDevAddr>g_mbPollTab[j+1].mbDevAddr)
+//				{
+//					temp=g_mbPollTab[j];
+//					g_mbPollTab[j]=g_mbPollTab[j+1];
+//					g_mbPollTab[j+1]=temp;
+//				}
+//			}
+//		}
+
+		for(i=0; i<n-1; i++){
+			for(j=startAddr; j<n-1-i+startAddr; j++){
+				if(g_mbPollTab[j].mbDevAddr>g_mbPollTab[j+1].mbDevAddr){
+					temp=g_mbPollTab[j];
+					g_mbPollTab[j]=g_mbPollTab[j+1];
+					g_mbPollTab[j+1]=temp;
+				}
+			}
+		}
+//		for(i=startAddr; i<endAddr-1; i++)
+//		{
+//			if(g_mbPollTab[i].mbDevAddr>g_mbPollTab[i+1].mbDevAddr)
+//			{
+//				temp=g_mbPollTab[i];
+//				g_mbPollTab[i]=g_mbPollTab[i+1];
+//				g_mbPollTab[i+1]=temp;
+//			}
+//		}
+
+	}
 }

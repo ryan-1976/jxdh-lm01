@@ -122,9 +122,10 @@ typedef struct{
 	int  oid;
 	int  len;
 	int  mbDevAddr;
-	int  stdMbCmd;
+	int  stdMbReadCmd;
+	int  stdMbSetCmd;
 	int  mbStartAddr;
-	char pollPortName[10];
+	char pollPortNameIdx;
 	char nonStdCmdId[10];
 }MBPOLLCFG;
 

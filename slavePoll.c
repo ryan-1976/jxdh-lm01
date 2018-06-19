@@ -16,11 +16,11 @@ void * mbPollThread(void *arg);
 void * nonStdMbThread(void *arg);
 static char judgeMbPollIsStd(const char * name);
 static void pollThreadcreate(void);
-const int idx[6]={0,1,2,3,4,5};
+static const int idx[7]={0,1,2,3,4,5,6};
 //const char serialPath[6][15]={"/dev/ttymxc1","/dev/ttymxc2","/dev/ttymxc3","/dev/ttymxc4","/dev/ttymxc5","/dev/ttymxc7"};
-const  char *serialPath[]={"/dev/ttymxc1","/dev/ttymxc2","/dev/ttymxc3","/dev/ttymxc4","/dev/ttymxc5","/dev/ttymxc7"};
-const  char  *rs485[]={"RS485-0","RS485-1","RS485-2","RS485-3","RS485-4","RS485-5"};
-
+static const  char *serialPath[]={"/dev/ttymxc1","/dev/ttymxc2","/dev/ttymxc3","/dev/ttymxc5","/dev/ttymxc4","/dev/ttymxc6"};
+static const  char  *rs485[]={"RS485-0","RS485-1","RS485-2","RS485-3","RS485-4","RS485-5"};
+extern int nativeUartTreat(char *port);
 void *slavePollThread(void)
 {
 //
@@ -107,8 +107,8 @@ void * mbPollThread(void *arg)
      */
     while(1)
     {
-    	printf("num is %d\n",num);
-    	printf("serialPath is %s\n",serialPath[num]);
+    	//printf("num is %d\n",num);
+    	//printf("serialPath is %s\n",serialPath[num]);
 
        sleep(2);
     }
@@ -118,25 +118,35 @@ void * nonStdMbThread(void *arg)
 {
     int num=*(int *)arg;
 
+    nonStdUartTreat(serialPath[num]);
     while(1)
     {
-    	printf("num is %d\n",num);
-    	printf("no standard modubs thread serialPath is %s\n",serialPath[num]);
+    	//printf("num is %d\n",num);
+    	//printf("no standard modubs thread serialPath is %s\n",serialPath[num]);
 
-       sleep(2);
+      // sleep(2);
     }
     //return NULL;
 }
+void * nativeSlavePollThread(void *arg)
+{
+    int num=*(int *)arg;
+	printf("num is %d\n",num);
+	printf("native slave poll serialPath is %s\n",serialPath[num]);
+	nativeUartTreat(serialPath[num]);
 
+}
 static void pollThreadcreate(void)
 {
 	int i;
 	char rc;
-    pthread_t thr[6];
-
-  // if(pthread_create(&thr[0],NULL,mbPollThread,&idx[0])!=0);
-
-     for(i=0;i<6;i++)
+    pthread_t thr[7];
+	if(pthread_create(&thr[0],NULL,nativeSlavePollThread,&idx[0])!=0)
+	{
+		printf("create thread 0 failed!\n");
+		return;
+	}
+     for(i=1;i<6;i++)
      {
     	 rc=judgeMbPollIsStd(rs485[i]);
     	 //rc=1;
@@ -158,17 +168,6 @@ static void pollThreadcreate(void)
     	 }
 
      }
-  //  if(pthread_create(&thr1,NULL,func,&idx[0])!=0)
-//    {
-//        printf("create thread 0 failed!\n");
-//        return;
-//    }
-//    if(pthread_create(&thr2,NULL,func,&idx[1])!=0)
-//    {
-//        printf("create thread 1 failed!\n");
-//        return;
-//    }
-
 }
 static char judgeMbPollIsStd(const char * name)
 {
