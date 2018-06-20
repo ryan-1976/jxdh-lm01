@@ -129,7 +129,7 @@ typedef struct{
 	INT16U  comPacketIndex;
 	INT16U  byteIndex;
 	INT16U  bitIndex;
-	INT8U   nonStdCmdId[10];
+	INT16U   nonStdCmdId;
 
 }MBPOLLCFG;
 
@@ -166,10 +166,15 @@ typedef struct{
 	INT16U          packetInex;
 	INT16U          starAddrIndex;//在总表中的开始位置。方便寻址
 	INT8U           portIdx;
+	INT16U          spCmdId;
 	CONTENT_RECORD  content;
 }PACKET_record;
 
-
+typedef struct{
+	INT16U         id;
+	INT8U          len;
+	INT8U          ctx[20];
+}nonStdMbCmdTab;
 
 extern int  get_oidIdx(int oid);
 extern int  get_typeValue(char *ssType);
@@ -177,14 +182,15 @@ extern void testCrc32(void);
 extern INT32U caculate_crc( unsigned char *string, INT32U size);
 extern int base64_decode( const char * base64, unsigned char * bindata );
 extern void DebugPrint(char *fmt, ...);
+extern void StrToHex(INT8U *pbDest, INT8U *pbSrc, INT16U nLen);
 //extern void calc_img_crc(void);
 
 extern devDataTable *g_devDataTab;
 extern devHardCfg *g_devHardCfg;
 extern MBPOLLCFG *g_mbPollTab;
-extern int  g_tabLen;
-extern int  g_devHardCfgLen;
-extern int  g_mbPollTabLen;
+extern INT16U  g_tabLen;
+extern INT16U  g_devHardCfgLen;
+extern INT16U  g_mbPollTabLen;
 extern char *g_mqComVer;
 extern char g_mqComId[];
 

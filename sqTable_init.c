@@ -14,15 +14,19 @@ char g_mqTopicCtrl[50]={0};
 char g_mqServer[30]={0};
 char g_mqClientId[50]={0};
 
-int  g_tabLen=0;
-int  g_devHardCfgLen=0;
-int  g_mbPollTabLen=0;
+INT16U  g_tabLen=0;
+INT16U  g_devHardCfgLen=0;
+INT16U  g_mbPollTabLen=0;
+INT16U  g_nonStdMbCmdTabLen=0;
+
 const char *dbPathName="./db-dhlm01.db";
 static void getHardCfg(void);
 static void getMbPollCfg(void);
 
 PACKET_record *g_CommPacket;
+nonStdMbCmdTab *g_nonStdMbCmdPacket;
 INT16U g_comPackeIdx;
+
 void sqTable_init(void)
 {
 	sqlite3 *pdb = NULL;
@@ -152,6 +156,76 @@ end:
 
 }
 
+INT8U rmZfFun(char str[20],char ch)
+{
+	INT16U  i,j;
+	for(i=0;str[i]!='\0';i++)
+	{
+		if(str[i]==ch)
+		{
+			for(j=i;str[j]!='\0';j++) str[j]=str[j+1];
+		}
+	}
+}
+static void getNonStdCmd(void)
+{
+	char** pResult;
+	int nRow,nCol,nResult;
+	char* errmsg;
+	int i;
+	sqlite3 *pdb = NULL;
+	nResult = sqlite3_open_v2(dbPathName,&pdb,SQLITE_OPEN_READWRITE,NULL);
+
+    char * strSql = "select * from nonStdMbCmdTab";
+    nResult = sqlite3_get_table(pdb,strSql,&pResult,&nRow,&nCol,&errmsg);
+	if (nResult != SQLITE_OK)
+	{
+		sqlite3_close(pdb);
+		sqlite3_free(errmsg);
+		return ;
+	}
+
+	int nIndex = nCol;
+	g_nonStdMbCmdTabLen = nRow;
+	//---------------------------------------------------
+	//nonStdMbCmdTab *g_nonStdMbCmdPacket;
+	printf("g_nonStdMbCmdTabLen=%d\n",g_nonStdMbCmdTabLen);
+	if ((g_nonStdMbCmdPacket = (nonStdMbCmdTab *)malloc((g_nonStdMbCmdTabLen) * sizeof(nonStdMbCmdTab))) == NULL)
+	{
+		printf("malloc g_nonStdMbCmdPacket error\n");
+		exit(EXIT_FAILURE);
+	}
+
+	for(i=0;i<g_nonStdMbCmdTabLen;i++)
+	{
+
+		g_nonStdMbCmdPacket[i].id = atoi(pResult[nIndex]);
+
+//		strcpy(g_devHardCfg[i].name,pResult[nIndex]);
+//		strcpy(g_devHardCfg[i].option1,pResult[nIndex+1]);
+//		strcpy(g_devHardCfg[i].option2,pResult[nIndex+2]);
+//		strcpy(g_devHardCfg[i].option3,pResult[nIndex+3]);
+//		strcpy(g_devHardCfg[i].option4,pResult[nIndex+4]);
+//		strcpy(g_devHardCfg[i].option5,pResult[nIndex+5]);
+
+		nIndex=nIndex+nCol;
+	}
+//	for(i=0;i<g_devHardCfgLen;i++)
+//	{
+//		printf("g_devHardCfg.name=%s ",g_devHardCfg[i].name);
+//		printf("g_devHardCfg.option1=%s ",g_devHardCfg[i].option1);
+//		printf("g_devHardCfg.option2=%s ",g_devHardCfg[i].option2);
+//		printf("g_devHardCfg.option3=%s ",g_devHardCfg[i].option3);
+//		printf("g_devHardCfg.option4=%s ",g_devHardCfg[i].option4);
+//		printf("g_devHardCfg.option5=%s ",g_devHardCfg[i].option5);
+//		printf("\n ");
+//	}
+	  //---------------------------------------------------
+
+	  sqlite3_close(pdb);
+	  sqlite3_free(errmsg);
+
+}
 static void getHardCfg(void)
 {
 	char** pResult;
@@ -250,32 +324,34 @@ static void getMbPollCfg(void)
 		g_mbPollTab[i].stdMbReadCmd =atoi(pResult[nIndex+5]);
 		g_mbPollTab[i].stdMbSetCmd =atoi(pResult[nIndex+6]);
 		g_mbPollTab[i].mbStartAddr =atoi(pResult[nIndex+7]);
-		strcpy(g_mbPollTab[i].nonStdCmdId,pResult[nIndex+8]);
+		g_mbPollTab[i].nonStdCmdId =atoi(pResult[nIndex+8]);
 
 		nIndex=nIndex+nCol;
 	}
+	SortByNonStdCmd();
 	SortByRs485();
 	SortByMbDevAddr();
 	SortByMbDevReadCmd();
 	SortByMbStartAddr();
-	//g_commPacketForm();
+	g_commPacketForm();
 	for(i=0;i<g_mbPollTabLen;i++)
 	{
+
 		printf("pollPortNameIdx=%d ",g_mbPollTab[i].pollPortNameIdx);
 		printf("mbDevAddr=%d ",g_mbPollTab[i].mbDevAddr);
+		printf("comPacketIndex=%d ",g_mbPollTab[i].comPacketIndex);
+		printf("byteIndex=%d ",g_mbPollTab[i].byteIndex);
+		printf("bitIndex=%d ",g_mbPollTab[i].bitIndex);
 		printf("stdMbReadCmd=%d ",g_mbPollTab[i].stdMbReadCmd);
 		printf("mbStartAddr=%d ",g_mbPollTab[i].mbStartAddr);
 		printf("oid=%d ",g_mbPollTab[i].oid);
 		printf("len=%d ",g_mbPollTab[i].len);
 		printf("stdMbSetCmd=%d ",g_mbPollTab[i].stdMbSetCmd);
-
-		printf("nonStdCmdId=%s ",g_mbPollTab[i].nonStdCmdId);
-
+		printf("nonStdCmdId=%d ",g_mbPollTab[i].nonStdCmdId);
 		printf("\n ");
 	}
-	g_commPacketForm();
-	exit(1);
-	//SortByMbDevCmd();
+
+	//exit(1);
 	  //---------------------------------------------------
 
 	  sqlite3_close(pdb);
@@ -284,7 +360,7 @@ static void getMbPollCfg(void)
 }
 int changRs485Idx(char *p)
 {
-	int i;
+	INT16U i;
 	char  *rs485Name[]={"RS485-0","RS485-1","RS485-2","RS485-3","RS485-4","RS485-5"};
 
 	for(i=0;i<6;i++)
@@ -295,15 +371,14 @@ int changRs485Idx(char *p)
 	return 0;
 }
 
-void SortByRs485(void)
+void SortByNonStdCmd(void)
 {
-	int i,j;
+	INT16U i,j;
 	MBPOLLCFG temp;
-
 
 	for(i=0; i<g_mbPollTabLen; i++){
 		for(j=0; j<g_mbPollTabLen-i-1; j++){
-			if(g_mbPollTab[j].pollPortNameIdx>g_mbPollTab[j+1].pollPortNameIdx){
+			if(g_mbPollTab[j].nonStdCmdId>g_mbPollTab[j+1].nonStdCmdId){
 				temp=g_mbPollTab[j];
 				g_mbPollTab[j]=g_mbPollTab[j+1];
 				g_mbPollTab[j+1]=temp;
@@ -311,36 +386,27 @@ void SortByRs485(void)
 		}
 	}
 }
-
-void SortByMbDevReadCmd(void)
+void SortByRs485(void)
 {
-	int m,i,j;
+	INT16U m,i,j;
 	MBPOLLCFG temp;
-	int curStartAddr=0;
-	int nxStartAddr=0;
-	int cnt=0,sortFlag;
-
-	lWord4Byte preType,nxType;
-
+	INT16U curStartAddr=0;
+	INT16U nxStartAddr=0;
+	INT16U cnt=0,sortFlag;
+	lWord4Byte curType,nxType;
 
 	for(i=0; i<g_mbPollTabLen; i++)
 	{
 		sortFlag=0;
-
-		preType.lword=0;
+		curType.lword=0;
 		nxType.lword =0;
-		preType.byte[0]=g_mbPollTab[i].pollPortNameIdx;
-		preType.byte[1]=g_mbPollTab[i].mbDevAddr;
-		//preType.byte[2]=g_mbPollTab[i].stdMbReadCmd;
 
+		curType.byte[0]=g_mbPollTab[i].nonStdCmdId;
 		if(i<=g_mbPollTabLen-1)
 		{
-			nxType.byte[0]=g_mbPollTab[i+1].pollPortNameIdx;
-			nxType.byte[1]=g_mbPollTab[i+1].mbDevAddr;
-			//nxType.byte[2]=g_mbPollTab[i+1].stdMbReadCmd;
+			nxType.byte[0]=g_mbPollTab[i+1].nonStdCmdId;
 		}
-
-		if(preType.lword !=nxType.lword)
+		if(curType.lword !=nxType.lword)
 		{
 			nxStartAddr =i+1;
 			cnt =i-curStartAddr+1;
@@ -348,7 +414,72 @@ void SortByMbDevReadCmd(void)
 		}
 
 		if(sortFlag){
+			for(m=0; m<cnt-1; m++){
+				for(j=curStartAddr; j<cnt-1-m+curStartAddr; j++){
+					if(g_mbPollTab[j].pollPortNameIdx>g_mbPollTab[j+1].pollPortNameIdx){
+						temp=g_mbPollTab[j];
+						g_mbPollTab[j]=g_mbPollTab[j+1];
+						g_mbPollTab[j+1]=temp;
+					}
+				}
+			}
+		}
+		curStartAddr=nxStartAddr;
+	}
 
+	for(m=0; m<g_mbPollTabLen; m++)
+	{
+		if(g_mbPollTab[m].nonStdCmdId !=0)break;
+	}
+	for(i=m; i<g_mbPollTabLen; i++){
+		for(j=0; j<g_mbPollTabLen-i-1; j++){
+			if(g_mbPollTab[j+m].pollPortNameIdx>g_mbPollTab[j+1+m].pollPortNameIdx){
+				temp=g_mbPollTab[j+m];
+				g_mbPollTab[j+m]=g_mbPollTab[j+1+m];
+				g_mbPollTab[j+1+m]=temp;
+			}
+		}
+	}
+
+}
+void SortByMbDevReadCmd(void)
+{
+	INT16U m,i,j;
+	MBPOLLCFG temp;
+	INT16U curStartAddr=0;
+	INT16U nxStartAddr=0;
+	INT16U cnt=0,sortFlag;
+
+	lWord4Byte curType,nxType;
+
+
+	for(i=0; i<g_mbPollTabLen; i++)
+	{
+		sortFlag=0;
+
+		curType.lword=0;
+		nxType.lword =0;
+		curType.byte[0]=g_mbPollTab[i].nonStdCmdId;
+		curType.byte[1]=g_mbPollTab[i].pollPortNameIdx;
+		curType.byte[2]=g_mbPollTab[i].mbDevAddr;
+
+
+		if(i<=g_mbPollTabLen-1)
+		{
+			nxType.byte[0]=g_mbPollTab[i+1].nonStdCmdId;
+			nxType.byte[1]=g_mbPollTab[i+1].pollPortNameIdx;
+			nxType.byte[2]=g_mbPollTab[i+1].mbDevAddr;
+
+		}
+
+		if(curType.lword !=nxType.lword)
+		{
+			nxStartAddr =i+1;
+			cnt =i-curStartAddr+1;
+			sortFlag =1;
+		}
+
+		if(sortFlag){
 			for(m=0; m<cnt-1; m++){
 				for(j=curStartAddr; j<cnt-1-m+curStartAddr; j++){
 					if(g_mbPollTab[j].stdMbReadCmd>g_mbPollTab[j+1].stdMbReadCmd){
@@ -360,46 +491,38 @@ void SortByMbDevReadCmd(void)
 			}
 		}
 		curStartAddr=nxStartAddr;
-
 		}
 	}
 void SortByMbDevAddr(void)
 {
-	int m,i,j;
+	INT16U m,i,j;
 	MBPOLLCFG temp;
-	int curStartAddr=0;
-	int nxStartAddr=0;
-	int cnt=0,sortFlag;
+	INT16U curStartAddr=0;
+	INT16U nxStartAddr=0;
+	INT16U cnt=0,sortFlag;
 
-	lWord4Byte preType,nxType;
+	lWord4Byte curType,nxType;
 
 
 	for(i=0; i<g_mbPollTabLen; i++)
 	{
 		sortFlag=0;
-
-		preType.lword=0;
+		curType.lword=0;
 		nxType.lword =0;
-		preType.byte[0]=g_mbPollTab[i].pollPortNameIdx;
-		//preType.byte[1]=g_mbPollTab[i].mbDevAddr;
-		//preType.byte[2]=g_mbPollTab[i].stdMbReadCmd;
-
+		curType.byte[0]=g_mbPollTab[i].nonStdCmdId;
+		curType.byte[1]=g_mbPollTab[i].pollPortNameIdx;
 		if(i<=g_mbPollTabLen-1)
 		{
-			nxType.byte[0]=g_mbPollTab[i+1].pollPortNameIdx;
-			//nxType.byte[1]=g_mbPollTab[i+1].mbDevAddr;
-			//nxType.byte[2]=g_mbPollTab[i+1].stdMbReadCmd;
+			nxType.byte[0]=g_mbPollTab[i+1].nonStdCmdId;
+			nxType.byte[1]=g_mbPollTab[i+1].pollPortNameIdx;
 		}
-
-		if(preType.lword !=nxType.lword)
+		if(curType.lword !=nxType.lword)
 		{
 			nxStartAddr =i+1;
 			cnt =i-curStartAddr+1;
 			sortFlag =1;
 		}
-
 		if(sortFlag){
-
 			for(m=0; m<cnt-1; m++){
 				for(j=curStartAddr; j<cnt-1-m+curStartAddr; j++){
 					if(g_mbPollTab[j].mbDevAddr>g_mbPollTab[j+1].mbDevAddr){
@@ -411,46 +534,40 @@ void SortByMbDevAddr(void)
 			}
 		}
 		curStartAddr=nxStartAddr;
-
 		}
 	}
 void SortByMbStartAddr(void)
 {
-	int m,i,j;
+	INT16U m,i,j;
 	MBPOLLCFG temp;
-	int curStartAddr=0;
-	int nxStartAddr=0;
-	int cnt=0,sortFlag;
-
-	lWord4Byte preType,nxType;
-
+	INT16U curStartAddr=0;
+	INT16U nxStartAddr=0;
+	INT16U cnt=0,sortFlag;
+	lWord4Byte curType,nxType;
 
 	for(i=0; i<g_mbPollTabLen; i++)
 	{
 		sortFlag=0;
-
-		preType.lword=0;
+		curType.lword=0;
 		nxType.lword =0;
-		preType.byte[0]=g_mbPollTab[i].pollPortNameIdx;
-		preType.byte[1]=g_mbPollTab[i].mbDevAddr;
-		preType.byte[2]=g_mbPollTab[i].stdMbReadCmd;
-
+		curType.byte[0]=g_mbPollTab[i].nonStdCmdId;
+		curType.byte[1]=g_mbPollTab[i].pollPortNameIdx;
+		curType.byte[2]=g_mbPollTab[i].mbDevAddr;
+		curType.byte[3]=g_mbPollTab[i].stdMbReadCmd;
 		if(i<=g_mbPollTabLen-1)
 		{
-			nxType.byte[0]=g_mbPollTab[i+1].pollPortNameIdx;
-			nxType.byte[1]=g_mbPollTab[i+1].mbDevAddr;
-			nxType.byte[2]=g_mbPollTab[i+1].stdMbReadCmd;
+			nxType.byte[0]=g_mbPollTab[i+1].nonStdCmdId;
+			nxType.byte[1]=g_mbPollTab[i+1].pollPortNameIdx;
+			nxType.byte[2]=g_mbPollTab[i+1].mbDevAddr;
+			nxType.byte[3]=g_mbPollTab[i+1].stdMbReadCmd;
 		}
-
-		if(preType.lword !=nxType.lword)
+		if(curType.lword !=nxType.lword)
 		{
 			nxStartAddr =i+1;
 			cnt =i-curStartAddr+1;
 			sortFlag =1;
 		}
-
 		if(sortFlag){
-
 			for(m=0; m<cnt-1; m++){
 				for(j=curStartAddr; j<cnt-1-m+curStartAddr; j++){
 					if(g_mbPollTab[j].mbStartAddr>g_mbPollTab[j+1].mbStartAddr){
@@ -462,7 +579,6 @@ void SortByMbStartAddr(void)
 			}
 		}
 		curStartAddr=nxStartAddr;
-
 		}
 	}
 
@@ -474,34 +590,36 @@ void g_commPacketForm(void)
 	INT16U nxStartAddr=0;
 	INT16U cnt=0;
 	INT8U sortFlag;
-	lWord4Byte preType,nxType;
+	lWord4Byte curType,nxType;
 
 	if ((g_CommPacket = (PACKET_record *)malloc((g_mbPollTabLen) * sizeof(PACKET_record))) == NULL)
 	{
 		printf("malloc g_CommPacket error\n");
 		exit(EXIT_FAILURE);
 	}
-
 	for(i=0;i<g_mbPollTabLen;i++)
 	{
 		g_CommPacket[i].packetInex =0xff;
+		g_CommPacket[i].spCmdId=0;
 	}
 	g_comPackeIdx=0;
 	for(i=0; i<g_mbPollTabLen; i++)
 	{
 		sortFlag=0;
-		preType.lword=0;
+		curType.lword=0;
 		nxType.lword =0;
-		preType.byte[0]=g_mbPollTab[i].pollPortNameIdx;
-		preType.byte[1]=g_mbPollTab[i].mbDevAddr;
-		preType.byte[2]=g_mbPollTab[i].stdMbReadCmd;
+		curType.byte[0]=g_mbPollTab[i].nonStdCmdId;
+		curType.byte[1]=g_mbPollTab[i].pollPortNameIdx;
+		curType.byte[2]=g_mbPollTab[i].mbDevAddr;
+		curType.byte[3]=g_mbPollTab[i].stdMbReadCmd;
 		if(i<=g_mbPollTabLen-1)
 		{
-			nxType.byte[0]=g_mbPollTab[i+1].pollPortNameIdx;
-			nxType.byte[1]=g_mbPollTab[i+1].mbDevAddr;
-			nxType.byte[2]=g_mbPollTab[i+1].stdMbReadCmd;
+			nxType.byte[0]=g_mbPollTab[i+1].nonStdCmdId;
+			nxType.byte[1]=g_mbPollTab[i+1].pollPortNameIdx;
+			nxType.byte[2]=g_mbPollTab[i+1].mbDevAddr;
+			nxType.byte[3]=g_mbPollTab[i+1].stdMbReadCmd;
 		}
-		if(preType.lword !=nxType.lword)
+		if(curType.lword !=nxType.lword)
 		{
 			nxStartAddr =i+1;
 			cnt =i-curStartAddr+1;
@@ -509,18 +627,20 @@ void g_commPacketForm(void)
 		}
 		if(sortFlag)
 		{
-			if(g_mbPollTab[curStartAddr].len<2)
+			if(g_mbPollTab[curStartAddr].len<2&&g_mbPollTab[curStartAddr].nonStdCmdId==0)
 			{
 				PollBits_PacketTreat(curStartAddr,cnt);
 			}
-			else if(g_mbPollTab[curStartAddr].len==2)
+			else if(g_mbPollTab[curStartAddr].len==2&&g_mbPollTab[curStartAddr].nonStdCmdId==0)
 			{
-				//printf("curStartAddr =%d ;cnt =%d\n",curStartAddr,cnt);
 				PollWords_PacketTreat(curStartAddr,cnt);
+			}
+			else if(0!=g_mbPollTab[curStartAddr].nonStdCmdId)
+			{
+				PollSpecial_PacketTreat(curStartAddr,cnt);
 			}
 		}
 		curStartAddr=nxStartAddr;
-
 	}
 
 	for(i=0;i<g_mbPollTabLen;i++){
@@ -531,7 +651,8 @@ void g_commPacketForm(void)
 		printf("starAddrIndex=%d ",g_CommPacket[i].starAddrIndex);
 		printf("cmd=%d ",g_CommPacket[i].content.cmd);
 		printf("content.starMbAddr=%d ",g_CommPacket[i].content.starMbAddr);
-		printf("byteSum=%u \n",g_CommPacket[i].content.byteSum);
+		printf("byteSum=%d ",g_CommPacket[i].content.byteSum);
+		printf("spCmdId=%d \n",g_CommPacket[i].spCmdId);
 	}
 }
 
@@ -610,4 +731,25 @@ void PollWords_PacketTreat(INT16U starAddrIdx,INT16U len)
 		if(nxStarAddrIdx>=len)break;
 	}
 }
+
+void PollSpecial_PacketTreat(INT16U starAddrIdx,INT16U len)
+{
+	INT16U i,j,temp,starAddr;
+	MBPOLLCFG *pPtr;
+	printf("--------------------starAddrIdx =%d ;cnt =%d\n",starAddrIdx,len);
+	pPtr =&g_mbPollTab[starAddrIdx];
+	g_CommPacket[g_comPackeIdx].packetInex=g_comPackeIdx;
+	g_CommPacket[g_comPackeIdx].portIdx=pPtr[0].pollPortNameIdx;
+	g_CommPacket[g_comPackeIdx].starAddrIndex=starAddrIdx;
+	g_CommPacket[g_comPackeIdx].spCmdId=pPtr[0].nonStdCmdId;
+
+    for(i=0;i<len;i++)
+	{
+		pPtr[i].comPacketIndex=g_comPackeIdx;
+		pPtr[i].byteIndex=pPtr[i].mbStartAddr;
+		pPtr[i].bitIndex =0xff;
+	}
+	g_comPackeIdx++;
+}
+
 
