@@ -8,8 +8,9 @@
 #include<termios.h>    /*PPSIX 终端控制定义*/  
 #include<errno.h>      /*错误号定义*/  
 #include<string.h>  
-   
-   
+#include "public.h"
+ static const char *serialPath[]={"/dev/ttymxc7","/dev/ttymxc2","/dev/ttymxc3","/dev/ttymxc5","/dev/ttymxc4","/dev/ttymxc6"};
+ static const char *rs485[]={"RS485-0","RS485-1","RS485-2","RS485-3","RS485-4","RS485-5"};
 //宏定义  
 #define FALSE  -1  
 #define TRUE   0  
@@ -80,8 +81,8 @@ int UART_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int parity
      
 	int   i;  
 	int   status;  
-	int   speed_arr[] = { B115200, B19200, B9600, B4800, B2400, B1200, B300};  
-	int   name_arr[] = {115200,  19200,  9600,  4800,  2400,  1200,  300};  
+	int   speed_arr[] = { B115200, B57600, B38400, B19200, B9600, B4800, B2400, B1200, B300};
+	int   name_arr[] = {115200, 57600, 38400, 19200,  9600,  4800,  2400,  1200,  300};
            
 	struct termios options;  
      
@@ -249,7 +250,7 @@ int UART_Recv(int fd, char *rcv_buf,int data_len)
     FD_ZERO(&fs_read);  
     FD_SET(fd,&fs_read);  
      
-    time.tv_sec = 1;
+    time.tv_sec = 2;
     time.tv_usec = 0;  
      
     //使用select实现串口的多路通信  
@@ -289,49 +290,8 @@ int UART_Send(int fd, char *send_buf,int data_len)
 	}  
      
 }  
-int nonStdUartTreat(char *port)
-{
-    int fd;                            //文件描述符
-    int err;                           //返回调用函数的状态
-    int len;
-    int i;
-    char rcv_buf[255];
-    const char *send_buf="nonStdUartTreat11111111111111111111";
 
-    fd = UART_Open(fd,port); //打开串口，返回文件描述符
-    do
-	{
-		err = UART_Init(fd,115200,0,8,1,'N');
-		printf("Set Port %sExactly!\n", port);
-	}while(FALSE == err || FALSE == fd);
-
-		while (1) //循环读取数据
-		{
-			len = UART_Recv(fd, rcv_buf,255);
-  			if(len > 0)
-			{
-				rcv_buf[len] = '\0';
-				printf("port= %s ",port);
-				printf("  receive data is %s\n",rcv_buf);
-				printf("len = %d\n",len);
-			}
-			else
-			{
-				printf("port= %s ",port);
-				printf("cannot receive data\n");
-			}
-			sleep(2);
-			len = UART_Send(fd,send_buf,strlen(send_buf));
-			if(len > 0)
-				printf("port =%s ;send %d data successful\n",port,len);
-			else
-				printf("send data failed!\n");
-		}
-		UART_Close(fd);
-
-}
-   
-int nativeUartTreat(char *port)
+int nativeUartTreat(void)
 {  
     int fd;                            //文件描述符  
     int err;                           //返回调用函数的状态  
@@ -340,7 +300,7 @@ int nativeUartTreat(char *port)
     char rcv_buf[255];
     char send_buf[20]="tiger john";
 
-    fd = UART_Open(fd,port); //打开串口，返回文件描述符
+    fd = UART_Open(fd,"/dev/ttymxc7"); //打开串口，返回文件描述符
     do
 	{  
 		err = UART_Init(fd,115200,0,8,1,'N');
@@ -368,5 +328,80 @@ int nativeUartTreat(char *port)
 				printf("send data failed!\n");
 		}              
 		UART_Close(fd);
+}
+void mbPollUartTreat(INT8U idx)
+{
+    int fd=0;                            //文件描述符
+    int err;                           //返回调用函数的状态
+    int len;
+    INT16U i,startIdx;
+    char rcv_buf[255];
+    char tmp[20];
+    char send_buf[20]="tiger john";
+    char *token;
+    char* lasts;
+    int speed,databits,stopbits,parity;
 
+	startIdx=0xffff;
+	len=0;
+	for(i=0;i<g_comPackeIdx;i++)
+	{
+		if(g_CommPacket[i].portIdx==idx)
+		{
+			len++;
+			if(startIdx ==0xffff) startIdx=i;
+		}
+	}
+	if(len==0)return;
+
+	char *port=(char *)serialPath[idx];
+    fd = UART_Open(fd,port); //打开串口，返回文件描述符
+    for(i=0;i<g_devHardCfgLen;i++)
+    {
+    	printf("g_devHardCfg[%d].name =%s;rs485[idx]=%s\n",i,g_devHardCfg[i].name,rs485[idx]);
+    	if(!strcmp(g_devHardCfg[i].name,rs485[idx]))
+    	{
+    		strcpy(tmp,g_devHardCfg[i].option1);
+    		printf("tmp=%s;idx =%d;g_devHardCfg[i].option1=%s\n",tmp,idx,g_devHardCfg[i].option1);
+
+    		break;
+    	}
+    }
+    token=strtok_r(tmp,"/",&lasts);
+    speed=atoi(token);
+    token=strtok_r(NULL,"/",&lasts);
+    databits=atoi(token);
+    token=strtok_r(NULL,"/",&lasts);
+    stopbits=atoi(token);
+    token=strtok_r(NULL,"/",&lasts);
+    if(1==strlen(token))parity=token[0];
+    else parity=22;
+  //  printf("speed=%d;databits=%d;stopbits=%d;parity=%d;\n",speed,databits,stopbits,parity);
+    do
+	{
+		err = UART_Init(fd,speed,0,databits,stopbits,parity);
+	}while(FALSE == err || FALSE == fd);
+
+	while (1) //循环读取数据
+	{
+		len = UART_Recv(fd, rcv_buf,255);
+		if(len > 0)
+		{
+			rcv_buf[len] = '\0';
+			printf("receive data is %s\n",rcv_buf);
+			printf("len = %d;idx=%d\n",len,idx);
+
+		}
+		else
+		{
+			printf("cannot receive data \n");
+		}
+		sleep(2);
+		len = UART_Send(fd,send_buf,10);
+		if(len > 0)
+			printf(" %d time send %d data successful\n",i,len);
+		else
+			printf("send data failed!\n");
+	}
+	UART_Close(fd);
 }  

@@ -247,6 +247,19 @@ void StrToHex(INT8U *pbDest, INT8U *pbSrc, INT16U nLen)
 		pbDest[i] = s1*16 + s2;
     }
 }
+void rmZfFun(INT8U *p,INT8U ch)
+{
+	INT8U  i,j;
+
+	for(i=0;p[i]!='\0';i++)
+	{
+		if(p[i]==ch)
+		{
+			for(j=i;p[j]!='\0';j++) p[j]=p[j+1];
+		}
+		if(i>250)break;
+	}
+}
 //#define BUFSIZE     1024*4
 //
 //static unsigned int crc_table[256];

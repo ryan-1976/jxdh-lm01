@@ -110,11 +110,11 @@ typedef struct{
 }devDataTable;
 typedef struct{
 	char name[10];
-	char option1[10];
-	char option2[10];
-	char option3[10];
-	char option4[10];
-	char option5[10];
+	char option1[20];
+	char option2[20];
+	char option3[20];
+	char option4[20];
+	char option5[20];
 
 }devHardCfg;
 
@@ -167,6 +167,7 @@ typedef struct{
 	INT16U          starAddrIndex;//在总表中的开始位置。方便寻址
 	INT8U           portIdx;
 	INT16U          spCmdId;
+	INT16U          recLen;
 	CONTENT_RECORD  content;
 }PACKET_record;
 
@@ -183,14 +184,19 @@ extern INT32U caculate_crc( unsigned char *string, INT32U size);
 extern int base64_decode( const char * base64, unsigned char * bindata );
 extern void DebugPrint(char *fmt, ...);
 extern void StrToHex(INT8U *pbDest, INT8U *pbSrc, INT16U nLen);
+extern void rmZfFun(INT8U *p,INT8U ch);
 //extern void calc_img_crc(void);
 
 extern devDataTable *g_devDataTab;
 extern devHardCfg *g_devHardCfg;
 extern MBPOLLCFG *g_mbPollTab;
+extern PACKET_record *g_CommPacket;
 extern INT16U  g_tabLen;
 extern INT16U  g_devHardCfgLen;
 extern INT16U  g_mbPollTabLen;
+extern INT16U g_comPackeIdx;
+
+
 extern char *g_mqComVer;
 extern char g_mqComId[];
 
