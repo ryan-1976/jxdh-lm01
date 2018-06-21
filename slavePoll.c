@@ -48,6 +48,7 @@ void * nativeSlavePollThread(void *arg)
 	printf("num is %d\n",num);
 	//printf("native slave poll serialPath is %s\n",serialPath[num]);
 	nativeUartTreat();
+
 	pthread_exit((void *)0);
 }
 static void pollThreadcreate(void)
