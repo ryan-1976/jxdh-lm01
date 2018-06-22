@@ -129,8 +129,8 @@ typedef struct{
 	INT16U  comPacketIndex;
 	INT16U  byteIndex;
 	INT16U  bitIndex;
-	INT16U   nonStdCmdId;
-
+	INT16U  nonStdCmdId;
+	INT16U  option;
 }MBPOLLCFG;
 
 typedef struct
@@ -160,6 +160,7 @@ typedef struct{
 	INT8U   cmd;
 	INT16U  starMbAddr;
 	INT16U  byteSum;
+	INT16U  crc;
 }CONTENT_RECORD;
 
 typedef struct{
@@ -168,6 +169,7 @@ typedef struct{
 	INT8U           portIdx;
 	INT16U          spCmdId;
 	INT16U          recLen;
+	INT16U          sendLen;
 	CONTENT_RECORD  content;
 }PACKET_record;
 
@@ -180,6 +182,7 @@ typedef struct{
 extern int  get_oidIdx(int oid);
 extern int  get_typeValue(char *ssType);
 extern void testCrc32(void);
+extern INT16U modbusCrc16(INT8U *buffer, INT16U buffer_length);
 extern INT32U caculate_crc( unsigned char *string, INT32U size);
 extern int base64_decode( const char * base64, unsigned char * bindata );
 extern void DebugPrint(char *fmt, ...);
@@ -191,9 +194,11 @@ extern devDataTable *g_devDataTab;
 extern devHardCfg *g_devHardCfg;
 extern MBPOLLCFG *g_mbPollTab;
 extern PACKET_record *g_CommPacket;
+extern nonStdMbCmdTab *g_nonStdMbCmdPacket;
 extern INT16U  g_tabLen;
 extern INT16U  g_devHardCfgLen;
 extern INT16U  g_mbPollTabLen;
+extern INT16U  g_nonStdMbCmdTabLen;
 extern INT16U g_comPackeIdx;
 
 

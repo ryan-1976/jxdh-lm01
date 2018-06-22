@@ -33,12 +33,12 @@ int UART_Open(int fd,char* port)
 	//恢复串口为阻塞状态                                 
 	if(fcntl(fd, F_SETFL, 0) < 0)  
 	{  
-		printf("fcntl failed!\n");  
+		//printf("fcntl failed!\n");
 		return(FALSE);  
 	}       
 	else  
 	{  
-		printf("fcntl=%d\n",fcntl(fd, F_SETFL,0));  
+		//printf("fcntl=%d\n",fcntl(fd, F_SETFL,0));
 	}  
 	//测试是否为终端设备      
 	if(0 == isatty(STDIN_FILENO))  
@@ -48,9 +48,9 @@ int UART_Open(int fd,char* port)
 	}  
 	else  
 	{  
-		printf("isatty success!\n");  
+		//printf("is a tty success!\n");
 	}                
-	printf("fd->open=%d\n",fd);  
+	printf("fd->open=%d ok\n",fd);
 	return fd;  
 }  
 /******************************************************************* 
@@ -142,8 +142,8 @@ int UART_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int parity
                  options.c_cflag |= CS8;  
                  break;    
 		default:     
-                 fprintf(stderr,"Unsupported data size\n");  
-                 return (FALSE);   
+			      options.c_cflag |= CS8;
+			     break;
     }  
     //设置校验位  
     switch (parity)  
@@ -169,9 +169,12 @@ int UART_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int parity
                  options.c_cflag &= ~PARENB;  
                  options.c_cflag &= ~CSTOPB;  
                  break;   
-        default:    
-                 fprintf(stderr,"Unsupported parity\n");      
-                 return (FALSE);   
+        default:    //无奇偶校验位。
+//                 fprintf(stderr,"Unsupported parity\n");
+//                 return (FALSE);
+				options.c_cflag &= ~PARENB;
+				options.c_iflag &= ~INPCK;
+				break;
     }   
     // 设置停止位   
     switch (stopbits)  
@@ -181,8 +184,7 @@ int UART_Set(int fd,int speed,int flow_ctrl,int databits,int stopbits,int parity
 		case 2:     
                  options.c_cflag |= CSTOPB; break;  
 		default:     
-                       fprintf(stderr,"Unsupported stop bits\n");   
-                       return (FALSE);  
+			     options.c_cflag &= ~CSTOPB; break;
     }  
      
 	//修改输出模式，原始数据输出  
@@ -334,13 +336,23 @@ void mbPollUartTreat(INT8U idx)
     int fd=0;                            //文件描述符
     int err;                           //返回调用函数的状态
     int len;
-    INT16U i,startIdx;
-    char rcv_buf[255];
+    INT16U i,j,m,startIdx;
+    char rcv_buf[1024];
     char tmp[20];
     char send_buf[20]="tiger john";
     char *token;
+    char *start;
     char* lasts;
+    int sendlen;
     int speed,databits,stopbits,parity;
+
+    typedef struct{
+    	INT8U    sendLen;
+    	INT8U    recLen;
+    	INT16U   gCommIdx;
+    	INT8U    ctx[20];
+    }SEND_T;
+    SEND_T *sendBuf;
 
 	startIdx=0xffff;
 	len=0;
@@ -353,17 +365,59 @@ void mbPollUartTreat(INT8U idx)
 		}
 	}
 	if(len==0)return;
+	if ((sendBuf = (SEND_T *)malloc(len *20 ))== NULL)
+	{
+		printf("malloc sendBuf error\n");
+		return;
+	}
+	for(i=0;i<len;i++)
+	{
+		if(g_CommPacket[startIdx+i].sendLen>20)goto end;
+		printf("------------------------------------------\n");
+		if(0==g_CommPacket[startIdx+i].spCmdId)
+		{
+			sendBuf[i].sendLen= g_CommPacket[startIdx+i].sendLen;
+			sendBuf[i].recLen= g_CommPacket[startIdx+i].recLen;
+			sendBuf[i].gCommIdx= g_CommPacket[startIdx+i].packetInex;
+			printf(" sendLen=%x;gCommIdx=%x;recLen=%x ctx=",sendBuf[i].sendLen,sendBuf[i].gCommIdx,sendBuf[i].recLen);
+			start=&g_CommPacket[startIdx+i].content.devAddr;
+			for(j=0;j<g_CommPacket[startIdx+i].sendLen;j++)
+			{
+				sendBuf[i].ctx[j]= start[j];
+				printf(" %x ",sendBuf[i].ctx[j]);
+			}
+		}
+		else
+		{
+			for(j=0;j<g_nonStdMbCmdTabLen;j++)
+			{
+				if(g_CommPacket[startIdx+i].spCmdId==g_nonStdMbCmdPacket[j].id)break;
+			}
+			if(j>=g_nonStdMbCmdTabLen)goto end;
+			sendBuf[i].sendLen= g_CommPacket[startIdx+i].sendLen;
+			sendBuf[i].recLen= g_CommPacket[startIdx+i].recLen;
+			sendBuf[i].gCommIdx= g_CommPacket[startIdx+i].packetInex;
+			printf(" sendLen=%x;gCommIdx=%x;recLen=%x ctx=",sendBuf[i].sendLen,sendBuf[i].gCommIdx,sendBuf[i].recLen);
+			for(m=0;m<g_CommPacket[startIdx+i].sendLen;m++)
+			{
+				sendBuf[i].ctx[m]= g_nonStdMbCmdPacket[j].ctx[m];
+				printf(" %x ",sendBuf[i].ctx[m]);
+			}
+		}
+		printf("\n");
+	}
+
+
 
 	char *port=(char *)serialPath[idx];
     fd = UART_Open(fd,port); //打开串口，返回文件描述符
     for(i=0;i<g_devHardCfgLen;i++)
     {
-    	printf("g_devHardCfg[%d].name =%s;rs485[idx]=%s\n",i,g_devHardCfg[i].name,rs485[idx]);
+    	//printf("g_devHardCfg[%d].name =%s;rs485[idx]=%s\n",i,g_devHardCfg[i].name,rs485[idx]);
     	if(!strcmp(g_devHardCfg[i].name,rs485[idx]))
     	{
     		strcpy(tmp,g_devHardCfg[i].option1);
-    		printf("tmp=%s;idx =%d;g_devHardCfg[i].option1=%s\n",tmp,idx,g_devHardCfg[i].option1);
-
+    		printf("name=%s;cfg=%s;idx =%d;g_devHardCfg[i].option1=%s\n",g_devHardCfg[i].name,tmp,idx,g_devHardCfg[i].option1);
     		break;
     	}
     }
@@ -377,31 +431,52 @@ void mbPollUartTreat(INT8U idx)
     if(1==strlen(token))parity=token[0];
     else parity=22;
   //  printf("speed=%d;databits=%d;stopbits=%d;parity=%d;\n",speed,databits,stopbits,parity);
-    do
-	{
-		err = UART_Init(fd,speed,0,databits,stopbits,parity);
-	}while(FALSE == err || FALSE == fd);
+
+    if(fd ==FALSE)goto end;
+    err = UART_Init(fd,speed,0,databits,stopbits,parity);
+    if(err ==FALSE)goto end;
 
 	while (1) //循环读取数据
 	{
-		len = UART_Recv(fd, rcv_buf,255);
-		if(len > 0)
+		for(i=0;i<len;i++)
 		{
-			rcv_buf[len] = '\0';
-			printf("receive data is %s\n",rcv_buf);
-			printf("len = %d;idx=%d\n",len,idx);
+			sendlen = UART_Send(fd,sendBuf[i].ctx,sendBuf[i].sendLen);
+			if(sendlen > 0){
+				printf("port=%s;sendBuf[%d] sendData=",port,i);
+                for(j=0;j<sendBuf[i].sendLen;j++)
+                {
+                	printf(" %x",sendBuf[i].ctx[j]);
+                }
+                printf("\n");
+			}
+			else printf("send data failed!\n");
+			len = UART_Recv(fd, rcv_buf,sendBuf[i].sendLen);
+			sleep(2);
 
 		}
-		else
-		{
-			printf("cannot receive data \n");
-		}
-		sleep(2);
-		len = UART_Send(fd,send_buf,10);
-		if(len > 0)
-			printf(" %d time send %d data successful\n",i,len);
-		else
-			printf("send data failed!\n");
+
+
+//		len = UART_Recv(fd, rcv_buf,255);
+//		if(len > 0)
+//		{
+//			rcv_buf[len] = '\0';
+//			printf("receive data is %s\n",rcv_buf);
+//			printf("len = %d;idx=%d\n",len,idx);
+//
+//		}
+//		else
+//		{
+//			printf("cannot receive data \n");
+//		}
+//		sleep(2);
+//		len = UART_Send(fd,send_buf,10);
+//		if(len > 0)
+//			printf(" %d time send %d data successful\n",i,len);
+//		else
+//			printf("send data failed!\n");
 	}
 	UART_Close(fd);
+end:
+	free(sendBuf);
+	return;
 }  

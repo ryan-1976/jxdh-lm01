@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "public.h"
 #include <string.h>
+#include <arpa/inet.h>
 #define POLLPACKETMAXLEN 100
 devDataTable *g_devDataTab;
 devHardCfg *g_devHardCfg;
@@ -320,7 +321,7 @@ static void getMbPollCfg(void)
 		g_mbPollTab[i].stdMbSetCmd =atoi(pResult[nIndex+6]);
 		g_mbPollTab[i].mbStartAddr =atoi(pResult[nIndex+7]);
 		g_mbPollTab[i].nonStdCmdId =atoi(pResult[nIndex+8]);
-
+		g_mbPollTab[i].option =atoi(pResult[nIndex+9]);
 		nIndex=nIndex+nCol;
 	}
 	SortByNonStdCmd();
@@ -381,16 +382,19 @@ void g_commPacketSortByRs485(void)
 		}
 	}
 	printf("3--------g_comPackeIdx=%d-----------------------------------------\n",g_comPackeIdx);
-	for(i=0;i<g_comPackeIdx;i++){
-		//if(g_CommPacket[i].packetInex ==0xff)break;
+	for(i=0;i<g_mbPollTabLen;i++){
+		if(g_CommPacket[i].packetInex ==0xff)break;
 		printf("g_index=%d ",g_CommPacket[i].packetInex);
 		printf("portIdx=%d ",g_CommPacket[i].portIdx);
-		printf("devAddr=%d ",g_CommPacket[i].content.devAddr);
 		printf("starAddrIndex=%d ",g_CommPacket[i].starAddrIndex);
-		printf("cmd=%d ",g_CommPacket[i].content.cmd);
-		printf("content.starMbAddr=%d ",g_CommPacket[i].content.starMbAddr);
-		printf("byteSum=%d ",g_CommPacket[i].content.byteSum);
-		printf("spCmdId=%d \n",g_CommPacket[i].spCmdId);
+		printf("spCmdId=%d ",g_CommPacket[i].spCmdId);
+		printf("recLen=%d ",g_CommPacket[i].recLen);
+		printf("sendLen=%d ",g_CommPacket[i].sendLen);
+		printf("devAddr=%x ",g_CommPacket[i].content.devAddr);
+		printf("cmd=%x ",g_CommPacket[i].content.cmd);
+		printf("starMbAddr=%x ",g_CommPacket[i].content.starMbAddr);
+		printf("byteSum=%x ",g_CommPacket[i].content.byteSum);
+		printf("crc=%x \n",g_CommPacket[i].content.crc);
 	}
 	printf("4-------------------------------------------------\n");
 }
@@ -670,14 +674,15 @@ void g_commPacketForm(void)
 		if(g_CommPacket[i].packetInex ==0xff)break;
 		printf("g_index=%d ",g_CommPacket[i].packetInex);
 		printf("portIdx=%d ",g_CommPacket[i].portIdx);
-		printf("devAddr=%d ",g_CommPacket[i].content.devAddr);
 		printf("starAddrIndex=%d ",g_CommPacket[i].starAddrIndex);
-		printf("cmd=%d ",g_CommPacket[i].content.cmd);
-		printf("content.starMbAddr=%d ",g_CommPacket[i].content.starMbAddr);
-		printf("byteSum=%d ",g_CommPacket[i].content.byteSum);
 		printf("spCmdId=%d ",g_CommPacket[i].spCmdId);
-		printf("recLen=%d \n",g_CommPacket[i].recLen);
-
+		printf("recLen=%d ",g_CommPacket[i].recLen);
+		printf("sendLen=%d ",g_CommPacket[i].sendLen);
+		printf("devAddr=%x ",g_CommPacket[i].content.devAddr);
+		printf("cmd=%x ",g_CommPacket[i].content.cmd);
+		printf("starMbAddr=%x ",g_CommPacket[i].content.starMbAddr);
+		printf("byteSum=%x ",g_CommPacket[i].content.byteSum);
+		printf("crc=%x \n",g_CommPacket[i].content.crc);
 	}
 	printf("2-------------------------------------------------\n");
 }
@@ -715,8 +720,17 @@ void PollBits_PacketTreat(INT16U starAddrIdx,INT16U len)
 			//if((pPtr[nxStarAddrIdx+j].mbStartAddr-pPtr[nxStarAddrIdx].mbStartAddr)>=pPtr[len-1].mbStartAddr)break;
 			else{};
 		}
-		g_CommPacket[g_comPackeIdx].content.byteSum=pPtr[nxStarAddrIdx+j-1].mbStartAddr -pPtr[nxStarAddrIdx].mbStartAddr+1;
-		g_CommPacket[g_comPackeIdx].recLen =(int)ceil((float)g_CommPacket[g_comPackeIdx].content.byteSum / 8)+5;
+		temp=pPtr[nxStarAddrIdx+j-1].mbStartAddr -pPtr[nxStarAddrIdx].mbStartAddr+1;
+    	g_CommPacket[g_comPackeIdx].recLen =(int)ceil((float)temp/ 8)+5;
+    	g_CommPacket[g_comPackeIdx].content.byteSum=temp;
+    	g_CommPacket[g_comPackeIdx].sendLen =8;
+		//--------------------------------------------------------------------------------------------------
+		g_CommPacket[g_comPackeIdx].content.byteSum=htons(g_CommPacket[g_comPackeIdx].content.byteSum);
+		g_CommPacket[g_comPackeIdx].content.starMbAddr=htons(g_CommPacket[g_comPackeIdx].content.starMbAddr);
+		//g_CommPacket[g_comPackeIdx].content.crc=modbusCrc16(&g_CommPacket[g_comPackeIdx].content,6);
+		temp =modbusCrc16(&g_CommPacket[g_comPackeIdx].content,6);
+		g_CommPacket[g_comPackeIdx].content.crc=htons(temp);
+		//---------------------------------------------------------------------------------------------------
 		nxStarAddrIdx +=j;
 		g_comPackeIdx++;
 		if(nxStarAddrIdx>=len)break;
@@ -754,6 +768,13 @@ void PollWords_PacketTreat(INT16U starAddrIdx,INT16U len)
 		}
 		g_CommPacket[g_comPackeIdx].content.byteSum=pPtr[nxStarAddrIdx+j-1].mbStartAddr -pPtr[nxStarAddrIdx].mbStartAddr+1;
 		g_CommPacket[g_comPackeIdx].recLen =5+g_CommPacket[g_comPackeIdx].content.byteSum*2;
+		g_CommPacket[g_comPackeIdx].sendLen =8;
+		//--------------------------------------------------------------------------------------------------
+		g_CommPacket[g_comPackeIdx].content.byteSum=htons(g_CommPacket[g_comPackeIdx].content.byteSum);
+		g_CommPacket[g_comPackeIdx].content.starMbAddr=htons(g_CommPacket[g_comPackeIdx].content.starMbAddr);
+		temp =modbusCrc16(&g_CommPacket[g_comPackeIdx].content,6);
+		g_CommPacket[g_comPackeIdx].content.crc=htons(temp);
+		//---------------------------------------------------------------------------------------------------
 		nxStarAddrIdx +=j;
 		g_comPackeIdx++;
 		if(nxStarAddrIdx>=len)break;
@@ -771,6 +792,14 @@ void PollSpecial_PacketTreat(INT16U starAddrIdx,INT16U len)
 	g_CommPacket[g_comPackeIdx].starAddrIndex=starAddrIdx;
 	g_CommPacket[g_comPackeIdx].spCmdId=pPtr[0].nonStdCmdId;
 	g_CommPacket[g_comPackeIdx].recLen =pPtr[0].len+5;
+	g_CommPacket[g_comPackeIdx].sendLen =0;
+	for(i=0;i<g_nonStdMbCmdTabLen;i++)
+	{
+		if(pPtr[0].nonStdCmdId==g_nonStdMbCmdPacket[i].id)
+		{
+			g_CommPacket[g_comPackeIdx].sendLen =g_nonStdMbCmdPacket[i].len;
+		}
+	}
     for(i=0;i<len;i++)
 	{
 		pPtr[i].comPacketIndex=g_comPackeIdx;
