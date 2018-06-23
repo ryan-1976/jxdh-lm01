@@ -175,7 +175,9 @@ typedef struct{
 
 typedef struct{
 	INT16U         id;
-	INT8U          len;
+	INT16U         sendLen;
+	INT16U         recLen;
+	INT16U         paraGetStartAddr;
 	INT8U          ctx[20];
 }nonStdMbCmdTab;
 

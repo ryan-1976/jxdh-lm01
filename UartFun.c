@@ -14,7 +14,7 @@
 //宏定义  
 #define FALSE  -1  
 #define TRUE   0  
-   
+//char rcv_buf[6][256];
 /******************************************************************* 
 * 名称：                  UART0_Open 
 * 功能：                打开串口并返回串口设备文件描述 
@@ -257,7 +257,7 @@ int UART_Recv(int fd, char *rcv_buf,int data_len)
      
     //使用select实现串口的多路通信  
     fs_sel = select(fd+1,&fs_read,NULL,NULL,&time);  
-    printf("fs_sel = %d\n",fs_sel);  
+   // printf("fs_sel = %d\n",fs_sel);
     if(fs_sel)  
 	{  
 		len = read(fd,rcv_buf,data_len);  
@@ -320,12 +320,12 @@ int nativeUartTreat(void)
 			}  
 			else  
 			{  
-				printf("cannot receive data\n");  
+				//printf("cannot receive data\n");
 			}  
 			sleep(2);  
 			len = UART_Send(fd,send_buf,10);
-			if(len > 0)
-				printf(" %d time send %d data successful\n",i,len);
+			if(len > 0);
+			//	printf(" %d time send %d data successful\n",i,len);
 			else
 				printf("send data failed!\n");
 		}              
@@ -337,18 +337,16 @@ void mbPollUartTreat(INT8U idx)
     int err;                           //返回调用函数的状态
     int len;
     INT16U i,j,m,startIdx;
-    char rcv_buf[1024];
     char tmp[20];
-    char send_buf[20]="tiger john";
     char *token;
     char *start;
     char* lasts;
-    int sendlen;
+    int sendlen,recLen;
     int speed,databits,stopbits,parity;
-
+    char rcv_buf[1024];
     typedef struct{
-    	INT8U    sendLen;
-    	INT8U    recLen;
+    	INT16U    sendLen;
+    	INT16U    recLen;
     	INT16U   gCommIdx;
     	INT8U    ctx[20];
     }SEND_T;
@@ -365,7 +363,8 @@ void mbPollUartTreat(INT8U idx)
 		}
 	}
 	if(len==0)return;
-	if ((sendBuf = (SEND_T *)malloc(len *20 ))== NULL)
+
+	if ((sendBuf = (SEND_T *)malloc(len *sizeof(SEND_T)))== NULL)
 	{
 		printf("malloc sendBuf error\n");
 		return;
@@ -397,7 +396,7 @@ void mbPollUartTreat(INT8U idx)
 			sendBuf[i].sendLen= g_CommPacket[startIdx+i].sendLen;
 			sendBuf[i].recLen= g_CommPacket[startIdx+i].recLen;
 			sendBuf[i].gCommIdx= g_CommPacket[startIdx+i].packetInex;
-			printf(" sendLen=%x;gCommIdx=%x;recLen=%x ctx=",sendBuf[i].sendLen,sendBuf[i].gCommIdx,sendBuf[i].recLen);
+			printf(" gCommIdx=%x;sendLen=%x;recLen=%x ctx=",sendBuf[i].gCommIdx,sendBuf[i].sendLen,sendBuf[i].recLen);
 			for(m=0;m<g_CommPacket[startIdx+i].sendLen;m++)
 			{
 				sendBuf[i].ctx[m]= g_nonStdMbCmdPacket[j].ctx[m];
@@ -442,15 +441,28 @@ void mbPollUartTreat(INT8U idx)
 		{
 			sendlen = UART_Send(fd,sendBuf[i].ctx,sendBuf[i].sendLen);
 			if(sendlen > 0){
-				printf("port=%s;sendBuf[%d] sendData=",port,i);
-                for(j=0;j<sendBuf[i].sendLen;j++)
-                {
-                	printf(" %x",sendBuf[i].ctx[j]);
-                }
-                printf("\n");
+//				printf("port=%s;sendBuf[%d] sendData=",port,i);
+//                for(j=0;j<sendBuf[i].sendLen;j++)
+//                {
+//                	printf(" %x",sendBuf[i].ctx[j]);
+//                }
+//                printf("\n");
 			}
 			else printf("send data failed!\n");
-			len = UART_Recv(fd, rcv_buf,sendBuf[i].sendLen);
+			recLen = UART_Recv(fd, rcv_buf,sendBuf[i].recLen);
+			if(recLen > 0)
+			{
+				tcflush(fd,TCIFLUSH);
+				printf(" recLen=%d;tureRecLen=%d;",sendBuf[i].recLen,recLen);
+				printf("rcv_buf=");
+				for(j=0;j<recLen;j++)
+				printf(" %x",rcv_buf[j]);
+				printf("\n");
+			}
+			else
+			{
+//				printf("port=%s cannot receive data \n",port);
+			}
 			sleep(2);
 
 		}

@@ -192,30 +192,34 @@ static void getNonStdCmd(void)
 
 		strcpy(g_temp,pResult[nIndex+1]);
 		rmZfFun(g_temp,0x20);
-		g_nonStdMbCmdPacket[i].len = strlen(g_temp)/2;
-		nIndex=nIndex+nCol;
-        if(strlen(g_temp)%2 ==0 && g_nonStdMbCmdPacket[i].len<20)
+		g_nonStdMbCmdPacket[i].sendLen = strlen(g_temp)/2;
+        if(strlen(g_temp)%2 ==0 && g_nonStdMbCmdPacket[i].sendLen<20)
         {
         	StrToHex(&g_nonStdMbCmdPacket[i].ctx[0], g_temp,strlen(g_temp));
         }
         else
         {
-        	g_nonStdMbCmdPacket[i].len = 0;
+        	g_nonStdMbCmdPacket[i].sendLen = 0;
         }
+        g_nonStdMbCmdPacket[i].recLen = atoi(pResult[nIndex+2]);
+        g_nonStdMbCmdPacket[i].paraGetStartAddr = atoi(pResult[nIndex+3]);
+        nIndex=nIndex+nCol;
 	}
 
 
     //-------------------------------------------------
-//	for(i=0;i<g_nonStdMbCmdTabLen;i++)
-//	{
-//		printf("---------------------------------\n");
-//
-//		for(j=0;j<g_nonStdMbCmdPacket[i].len;j++)
-//		{
-//			printf("%d ",g_nonStdMbCmdPacket[i].ctx[j]);
-//		}
-//		printf("\n");
-//	}
+	for(i=0;i<g_nonStdMbCmdTabLen;i++)
+	{
+		printf("---------------------------------\n");
+		printf("nonCmdId=%d; sendLen=%d;recLen=%d;data=",g_nonStdMbCmdPacket[i].id,g_nonStdMbCmdPacket[i].sendLen,g_nonStdMbCmdPacket[i].recLen);
+		for(j=0;j<g_nonStdMbCmdPacket[i].sendLen;j++)
+		{
+			printf("%d ",g_nonStdMbCmdPacket[i].ctx[j]);
+
+		}
+
+		printf("\n");
+	}
     //-------------------------------------------------
 
 
@@ -712,7 +716,7 @@ void PollBits_PacketTreat(INT16U starAddrIdx,INT16U len)
 		{
 			pPtr[nxStarAddrIdx+j-1].comPacketIndex=g_comPackeIdx;
 			temp = pPtr[nxStarAddrIdx+j-1].mbStartAddr-pPtr[nxStarAddrIdx].mbStartAddr;
-			pPtr[nxStarAddrIdx+j-1].byteIndex=temp/8;
+			pPtr[nxStarAddrIdx+j-1].byteIndex=temp/8+4;
 			pPtr[nxStarAddrIdx+j-1].bitIndex =mask[temp%8];
 
 			if((nxStarAddrIdx+j)>=len)break;
@@ -758,7 +762,7 @@ void PollWords_PacketTreat(INT16U starAddrIdx,INT16U len)
 		{
 			pPtr[nxStarAddrIdx+j-1].comPacketIndex=g_comPackeIdx;
 			temp = pPtr[nxStarAddrIdx+j-1].mbStartAddr-pPtr[nxStarAddrIdx].mbStartAddr;
-			pPtr[nxStarAddrIdx+j-1].byteIndex=temp*2;
+			pPtr[nxStarAddrIdx+j-1].byteIndex=temp*2+4;
 			pPtr[nxStarAddrIdx+j-1].bitIndex =0xff;
 
 			if((nxStarAddrIdx+j)>=len)break;
@@ -791,19 +795,21 @@ void PollSpecial_PacketTreat(INT16U starAddrIdx,INT16U len)
 	g_CommPacket[g_comPackeIdx].portIdx=pPtr[0].pollPortNameIdx;
 	g_CommPacket[g_comPackeIdx].starAddrIndex=starAddrIdx;
 	g_CommPacket[g_comPackeIdx].spCmdId=pPtr[0].nonStdCmdId;
-	g_CommPacket[g_comPackeIdx].recLen =pPtr[0].len+5;
+
 	g_CommPacket[g_comPackeIdx].sendLen =0;
-	for(i=0;i<g_nonStdMbCmdTabLen;i++)
+	for(j=0;j<g_nonStdMbCmdTabLen;j++)
 	{
-		if(pPtr[0].nonStdCmdId==g_nonStdMbCmdPacket[i].id)
+		if(pPtr[0].nonStdCmdId==g_nonStdMbCmdPacket[j].id)
 		{
-			g_CommPacket[g_comPackeIdx].sendLen =g_nonStdMbCmdPacket[i].len;
+			g_CommPacket[g_comPackeIdx].sendLen =g_nonStdMbCmdPacket[j].sendLen;
+			g_CommPacket[g_comPackeIdx].recLen =g_nonStdMbCmdPacket[j].recLen;
+			break;
 		}
 	}
     for(i=0;i<len;i++)
 	{
 		pPtr[i].comPacketIndex=g_comPackeIdx;
-		pPtr[i].byteIndex=pPtr[i].mbStartAddr;
+		pPtr[i].byteIndex=pPtr[i].mbStartAddr+g_nonStdMbCmdPacket[j].paraGetStartAddr;
 		pPtr[i].bitIndex =0xff;
 	}
 	g_comPackeIdx++;
